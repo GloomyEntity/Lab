@@ -1,0 +1,922 @@
+#include <iostream>
+#include <string>
+#include <windows.h>
+#include <conio.h>
+#include <vector>
+#include "H1.h"
+#include "Potato.h"
+#include "Narik.h"
+#include "Dog.h"
+using namespace std;
+
+
+// получение имени
+void get_name() {
+    cout << "Имя не должно превышать 10 символов" << endl;
+    cout << "Введите ваше имя:" << endl;
+    cin >> You.name;
+    int j = 0;
+    while (true) {
+        j++;
+        if (You.name[j] == '\0') { break; }
+
+    }
+    for (int i = j; i < 10; i++) {
+        You.name[i] = ' ';
+    }
+}
+
+
+// проверка на ходьбу игрока
+void Go_hero() {
+    if (fight == false) { can_go = true; }
+    else if (fight == true && hero_moves == true) { can_go = true; }
+    else if (fight == true && hero_moves == false) { can_go = false; }
+}
+
+//Жизнь и показатели
+void life_all() {
+    // регуляция отображения ХП
+    if (You.HP < 10 && You.HP > -1) { Interface[3][2] = "         "; }
+    else if (You.HP > 9 && You.HP < 100) { Interface[3][2] = "        "; }
+    else if (You.HP > 99 && You.HP < 1000) { Interface[3][2] = "       "; }
+    else if(You.HP < 0){ Interface[3][2] = "        "; }
+    if (You.HP < 1) { You.life = false; }
+    // смерть игрока
+    // смерть врага
+    if (enemy.enemy_entity_HP < 1 && enemy.enemy_life == true) { MadeQuests.push_back("УБЕЙ ЕГО"); HasQuests.erase(find(HasQuests.begin(), HasQuests.end(), "УБЕЙ ЕГО")); enemy.enemy_life = false;enemy.fight_for_enemy = false;fight = false;Map[0][enemy.enemy_y][enemy.enemy_x] = " . "; }
+    // регуляция отображения ХП врага
+    if (enemy.enemy_entity_HP > 99) { Interface_enemy[3][2] = "       "; }
+    else if (enemy.enemy_entity_HP > 9) { Interface_enemy[3][2] = "        "; }
+    // регуляция отображения ДМГ
+    if (You.DMG < 10) { Interface[4][2] = "        "; }
+    else if (You.DMG > 9 && You.DMG < 100) { Interface[4][2] = "       "; }
+    else if (You.DMG > 99 && You.DMG < 1000) { Interface[4][2] = "      "; }
+}
+// карта
+void Render_map() {
+    if (pitone.pit_pit == false && YouInMaze == false) {
+        for (int i = 0; i < size(Map[map_number]); i++) {
+            for (int j = 0; j < size(Map[map_number][i]); j++) { // Вывод карты игрока
+                cout << Map[map_number][i][j];
+            }
+            for (int J = 0; J < size(Interface[i]); J++) { // Вывод информации игрока
+                if (i == 1 && J == 1) { cout << " | Имя:" << " " << You.name; }
+                else { cout << Interface[i][J]; }
+            }
+            if (fight == true && enemy.fight_for_enemy == true) {
+                for (int g = 0; g < size(Interface_enemy[i]); g++) { // Вывод информации врага
+                    if (i == 1 && g == 1) { cout << " | Имя:" << " " << enemy.name_enemy << "#"; }
+                    else { cout << Interface_enemy[i][g]; }
+                }
+            }
+            if (fight == false && enemy.fight_for_enemy == false && (i != 0 && i != 5)) { cout << "#"; } //глиномесю
+            if (fight == false && enemy.fight_for_enemy == false && (i == 0 || i == 5)) { cout << " #"; } //глиномесю
+            cout << endl;
+        }
+    }
+    if (pitone.pit_pit == true) {
+        for (int i = 0; i < size(Pit1[pitone.pit_number]); i++) {
+            for (int j = 0; j < size(Pit1[pitone.pit_number][i]); j++) { // Вывод карты игрока
+                cout << Pit1[pitone.pit_number][i][j];
+            }
+            for (int J = 0; J < size(Interface[i]); J++) { // Вывод информации игрока
+                if (i == 1 && J == 1) { cout << " | Имя:" << " " << You.name; }
+                else { cout << Interface[i][J]; }
+            }
+            if (fight == true && enemy.fight_for_enemy == true) {
+                for (int g = 0; g < size(Interface_enemy[i]); g++) { // Вывод информации врага
+                    if (i == 1 && g == 1) { cout << " | Имя:" << " " << enemy.name_enemy << "#"; }
+                    else { cout << Interface_enemy[i][g]; }
+                }
+            }
+            if (fight == false && enemy.fight_for_enemy == false && (i != 0 && i != 5)) { cout << "#"; } //глиномесю
+            if (fight == false && enemy.fight_for_enemy == false && (i == 0 || i == 5)) { cout << " #"; } //глиномесю
+            cout << endl;
+        }
+    }
+    if (YouInMaze) {
+        cout << "-----------" << endl;
+        for (int i = -1; i < 2; i++) {
+            cout << "|";
+            for (int j = -1; j < 2; j++) {
+                if (You.hero_y + i >= 0 && You.hero_x + j >= 0) {
+                    cout << Maze[You.hero_y + i][You.hero_x + j];
+                }
+                else { cout << " \" "; }
+            }
+            
+            cout << "|" << endl;
+        }
+        cout << "-----------" << endl;
+    }
+
+}
+
+
+//Тут проверка на близость врага
+bool getActionOnEnemyX(int hero_x, int hero_y, int enemy_x, int enemy_y) {
+    return (map_number == 0 && (enemy_y == hero_y && (enemy_x - 1 == hero_x || enemy_x + 1 == hero_x)));
+}
+bool getActionOnEnemyY(int hero_x, int hero_y, int enemy_x, int enemy_y) {
+    return (map_number == 0 && (enemy_x == hero_x && (enemy_y - 1 == hero_y || enemy_y + 1 == hero_y)));
+}
+//Тут проверка на близость первого НПС
+bool TytNPC_C_X(int hero_x, int hero_y, int C_x, int C_y) {
+    return (map_number == 0 && (C_y == hero_y && (C_x - 1 == hero_x || C_x + 1 == hero_x)));
+}
+bool TytNPC_C_Y(int hero_x, int hero_y, int C_x, int C_y) {
+    return (map_number == 0 && (C_x == hero_x && (C_y - 1 == hero_y || C_y + 1 == hero_y)));
+}
+//Тут проверка на близость Нарика
+bool Narik_X(int hero_x, int hero_y, int Narik_x, int Narik_y) {
+    return (map_number == 2 && (Narik_y == hero_y && (Narik_x - 1 == hero_x || Narik_x + 1 == hero_x)));
+}
+bool Narik_Y(int hero_x, int hero_y, int Narik_x, int Narik_y) {
+    return (map_number == 2 && (Narik_x == hero_x && (Narik_y - 1 == hero_y || Narik_y + 1 == hero_y)));
+}
+
+
+bool debug = false; // debug меню
+
+// интерфейc
+void UI_Map() {
+    bool x_true = getActionOnEnemyX(You.hero_x, You.hero_y, enemy.enemy_x, enemy.enemy_y);
+    bool y_true = getActionOnEnemyY(You.hero_x, You.hero_y, enemy.enemy_x, enemy.enemy_y);
+    bool x_NPC_true = getActionOnEnemyX(You.hero_x, You.hero_y, Cyrllius_x, Cyrllius_y);
+    bool y_NPC_true = getActionOnEnemyY(You.hero_x, You.hero_y, Cyrllius_x, Cyrllius_y);
+    string probel_for_UI = "";
+    if (!((stone.li_x == You.hero_x && stone.li_y == You.hero_y && stone.pick_loot_item == false && map_number == 0) ||
+        (x_NPC_true || y_NPC_true) ||
+        (weed1.Wi_x == You.hero_x && weed1.Wi_y == You.hero_y && weed1.pick_weed_item == false && map_number == 0) ||
+        (weed2.Wi_x == You.hero_x && weed2.Wi_y == You.hero_y && weed2.pick_weed_item == false && map_number == 1)||
+        You.floor == dog.Dog)) {
+        probel_for_UI = probel_for_UI + "     ";
+    }
+    if (!x_true && !y_true) { probel_for_UI = probel_for_UI + "     "; }
+    cout << " ####################################" << endl;
+    cout << " #";
+    if ((stone.li_x == You.hero_x && stone.li_y == You.hero_y && stone.pick_loot_item == false && map_number == 0) ||
+        (x_NPC_true || y_NPC_true) ||
+        (weed1.Wi_x == You.hero_x && weed1.Wi_y == You.hero_y && weed1.pick_weed_item == false && map_number == 0) ||
+        (weed2.Wi_x == You.hero_x && weed2.Wi_y == You.hero_y && weed2.pick_weed_item == false && map_number == 1) ||
+        You.floor == dog.Dog) {
+        cout << " e-!;";
+    }
+
+    else { Map[map_number][stone.li_y][stone.li_x] = stone.loot_item; }
+    if (x_true || y_true) {
+        cout << " q-*;";
+    }
+    cout << " w-˄;";
+    cout << " s-˅;";
+    cout << " a-˂;";
+    cout << " d-˃;";
+    cout << " 0-E";
+    cout << probel_for_UI << "#" << endl;
+
+    cout << " ####################################" << endl;
+    if (fight == false) {
+        cout << " #Бой не идет                       #" << endl;
+    }
+    else {
+        cout << " #Бой идет                          #" << endl;
+    }
+    if (can_go == false) {
+        cout << " #Не ваш ход                        #" << endl;
+    }
+    else {
+        cout << " #Ваш ход                           #" << endl;
+    }
+    cout << " ####################################" << endl;
+}
+
+// отображения инвентаря
+void Render_Invert() {
+    cout << " ------------------------------------" << endl;
+    cout << " ####################################" << endl;
+    cout << " # Inventory:";
+    for (int i = 0; i < size(hero_invent); i++) {
+        cout << (hero_invent[i]);
+    }
+    cout << "     #";
+    cout << endl;
+
+}
+
+// облегчает жизнь
+void anime() {
+    system("cls");
+    Render_map();
+    Render_Invert();
+    UI_Map();
+}
+
+//Брутал. мод
+bool brutal_mode_type_i = true;
+void BrutalMode() {
+    if (You.brutal_mode == true && brutal_mode_type_i == true) {
+        You.DMG = You.DMG + 500;
+        You.HP = You.HP + 10;
+        if (You.LeftArm == ' ') { You.LeftArm = '*'; }
+        else if (You.RightArm == ' ') { You.RightArm = '*'; }
+        brutal_mode_type_i = false;
+        Interface[3][1] = to_string(You.HP);
+        Interface[4][1] = to_string(You.DMG);
+    }
+    if (You.brutal_mode == false) {
+        brutal_mode_type_i = true;
+    }
+    You.hero = You.LeftArm + You.hero_body + You.RightArm;
+    if (YouInMaze) {
+        Maze[You.hero_y][You.hero_x] = You.hero;
+    }
+    else{ Map[map_number][You.hero_y][You.hero_x] = You.hero; }
+}
+
+//враг
+void Move_enemy() {
+    bool x_true = getActionOnEnemyX(You.hero_x, You.hero_y, enemy.enemy_x, enemy.enemy_y);
+    bool y_true = getActionOnEnemyY(You.hero_x, You.hero_y, enemy.enemy_x, enemy.enemy_y);
+    if (enemy.enemy_moves == true && enemy.fight_for_enemy == true && enemy.enemy_life == true) {
+        if (x_true || y_true) {
+            You.HP = You.HP - enemy.enemy_entity_DMG;
+            if (You.HP < 1) { You.WhyYouDied = "Тебя затыкал враг)"; }
+            Interface[3][1] = to_string(You.HP);
+        }
+        else if (!x_true && !y_true) {
+            if (Map[map_number][You.hero_y][You.hero_x - 1] != " # ") {
+                if (Map[0][enemy.enemy_y][enemy.enemy_x] != Map[map_number][stone.li_y][stone.li_x]) {
+                    Map[0][enemy.enemy_y][enemy.enemy_x] = " . ";
+                }
+                else { Map[0][enemy.enemy_y][enemy.enemy_x] = stone.loot_item; }
+                enemy.enemy_x = You.hero_x - 1;
+                enemy.enemy_y = You.hero_y;
+                Map[0][enemy.enemy_y][enemy.enemy_x] = enemy.enemy_entity;
+            }
+            else if (Map[map_number][You.hero_y][You.hero_x + 1] != " # ") {
+                if (Map[0][enemy.enemy_y][enemy.enemy_x] != Map[map_number][stone.li_y][stone.li_x]) {
+                    Map[0][enemy.enemy_y][enemy.enemy_x] = " . ";
+                }
+                else { Map[0][enemy.enemy_y][enemy.enemy_x] = stone.loot_item; }
+                enemy.enemy_x = You.hero_x + 1;
+                enemy.enemy_y = You.hero_y;
+                Map[0][enemy.enemy_y][enemy.enemy_x] = enemy.enemy_entity;
+            }
+            else if (Map[map_number][You.hero_y - 1][You.hero_x] != " # ") {
+                if (Map[0][enemy.enemy_y][enemy.enemy_x] != Map[map_number][stone.li_y][stone.li_x]) {
+                    Map[0][enemy.enemy_y][enemy.enemy_x] = " . ";
+                }
+                else { Map[0][enemy.enemy_y][enemy.enemy_x] = stone.loot_item; }
+                enemy.enemy_y = You.hero_y - 1;
+                enemy.enemy_x = You.hero_x;
+                Map[0][enemy.enemy_y][enemy.enemy_x] = enemy.enemy_entity;
+            }
+            else if (Map[map_number][You.hero_y + 1][You.hero_x] != " # ") {
+                if (Map[0][enemy.enemy_y][enemy.enemy_x] != Map[map_number][stone.li_y][stone.li_x]) {
+                    Map[0][enemy.enemy_y][enemy.enemy_x] = " . ";
+                }
+                else { Map[0][enemy.enemy_y][enemy.enemy_x] = stone.loot_item; }
+                enemy.enemy_y = You.hero_y + 1;
+                enemy.enemy_x = You.hero_x;
+                Map[0][enemy.enemy_y][enemy.enemy_x] = enemy.enemy_entity;
+            }
+        }
+
+        enemy.enemy_moves = false;//переменная хода для моба
+
+    }
+    hero_moves = true;
+    Go_hero();// функция проверка на ходьбу игрока
+}
+
+char dialog_number;
+
+//Разговор с Кириллом
+void TalkWithC() {
+    bool haspotato = false;
+    int potatoInSlotN;
+    dialog_number = 0;
+    for (int x = 0;x < 6;x++) {
+        if (hero_invent_th[x] == stone.mystical_stone) { haspotato = true;potatoInSlotN = x; }
+    }
+    if ((You.LeftArm == '*' || You.RightArm == '*') && You.brutal_mode == true) { haspotato = true; }
+    system("cls");
+    for (int x = 0;x < size(HasQuests);x++) {
+        if (HasQuests[x] == "Potato" && !haspotato) {
+            canSpeak_now = false;
+        }
+    }
+    for (int x = 0; x < size(MadeQuests);x++) {
+        if (MadeQuests[x] == "Potato") {
+            canSpeak_now = false;
+        }
+    }
+    if (canSpeak_now && haspotato == false) {
+        cout << "> Potato!" << endl;
+        cout << "Привет(1)||Пока(2)||Что?(3)||Понял(4)" << endl;
+        do {
+            cin >> dialog_number;
+        } while (dialog_number != '1' && dialog_number != '2' && dialog_number != '3' && dialog_number != '4');
+        if (dialog_number == '2') { cout << "> Мяю!" << endl; }
+        else if (dialog_number == '1') { cout << "> Ы-ы!" << endl; }
+        else if (dialog_number == '3') { cout << "> Potato..." << endl; }
+        else if (dialog_number == '4') { cout << "> ГАВ!)" << endl;HasQuests.push_back("Potato"); }
+    }
+    if (canSpeak_now && haspotato) {
+        cout << ">Спасибо, Кирюш...а, то есть "; for (int x = 0;x < size(You.name);x++) { if (You.name[x] != ' ') { cout << You.name[x]; } } cout << " . И да, это мой камень и я его заберу)" << endl;
+        if (You.brutal_mode == true) {
+            You.brutal_mode = false;BrutalMode();You.DMG = You.DMG - 500;You.HP = 1;Interface[3][1] = to_string(You.HP); Interface[4][1] = to_string(You.DMG);
+            if (You.LeftArm == '*') { You.LeftArm = ' '; }
+            if (You.RightArm == '*') { You.RightArm = ' '; }
+            You.hero = You.LeftArm + You.hero_body + You.RightArm;
+            Map[map_number][You.hero_y][You.hero_x] = You.hero;
+        }
+        else {
+            hero_invent[potatoInSlotN] = " " + to_string(potatoInSlotN + 1) + " ";
+            hero_invent_th[potatoInSlotN] = " " + to_string(potatoInSlotN + 1) + " ";
+            //Убираем пробле в инвентаре
+            for (int x = 0;x <= 4;x++) {
+                if (hero_invent[x + 1] != " 1 " && hero_invent[x + 1] != " 2 " && hero_invent[x + 1] != " 3 " && hero_invent[x + 1] != " 4 " && hero_invent[x + 1] != " 5 " && hero_invent[x + 1] != " 6 ") {
+                    hero_invent[x] = hero_invent[x + 1];
+                    hero_invent_th[x] = hero_invent_th[x + 1];
+                    hero_invent[x + 1] = " " + to_string(x + 2) + " ";
+                    hero_invent_th[x + 1] = " " + to_string(x + 2) + " ";
+                }
+            }
+            --hero_inv_i;
+            //
+        }
+        if (find(HasQuests.begin(), HasQuests.end(), "Potato") != HasQuests.end()) {
+            HasQuests.erase(find(HasQuests.begin(), HasQuests.end(), "Potato"));
+        }
+        MadeQuests.push_back("Potato");
+    }
+    if (canSpeak_now == false) { cout << "> Potato!?" << endl; }
+    _getch();
+    canSpeak_now = true;
+}
+
+void TalkWithNaric() {
+    for (int x = 0; x < size(HasQuests);x++) {
+        if (HasQuests[x] == "КУРИ") {
+            canSpeak_now = false;
+        }
+    }
+    for (int x = 0; x < size(MadeQuests);x++) {
+        if (MadeQuests[x] == "КУРИ") {
+            canSpeak_now = false;
+        }
+    }
+    if (NAR.Nar_speak == true) {
+        if (canSpeak_now) {
+            system("cls");
+            dialog_number = 0;
+            cout << "> Я за раз могу закурить целый 1 раз) Слабо хотя бы 2?" << endl;
+            cout << "...(1) || ПОГНАЛИ НАФИГ(2)" << endl;
+            do {
+                cin >> dialog_number;
+            } while (dialog_number != '1' && dialog_number != '2');
+            if (dialog_number == '1') {
+                cout << "> Ладно,побьешь скажешь)" << endl;
+            }
+            if (dialog_number == '2') {
+                cout << "> ВОТ ЭТО НАСТРОЙ!" << endl;
+            }
+            _getch();
+            HasQuests.push_back("КУРИ");
+        }
+        if (!canSpeak_now && You.col_smok >= 2) {
+            system("cls");
+            cout << "> НУ ТЫ МАШИНА...а теперь отвянь -_-" << endl;
+            _getch();
+            anime();
+            Sleep(300);
+            Map[NAR.Nar_MapNumber][NAR.Nar_y][NAR.Nar_x] = "\'\'\'";
+            anime();
+            Sleep(300);
+            Map[NAR.Nar_MapNumber][NAR.Nar_y][NAR.Nar_x] = " . ";
+            anime();
+            Sleep(300);
+            NAR.Nar_y = 1;
+            NAR.Nar_x = 3;
+            Map[NAR.Nar_MapNumber][NAR.Nar_y][NAR.Nar_x] = "\'\'\'";
+            anime();
+            Sleep(200);
+            Map[NAR.Nar_MapNumber][NAR.Nar_y][NAR.Nar_x] = NAR.NaricNPC;
+            anime();
+            NAR.Nar_speak = false;
+            if (!HasQuests.empty()) {
+                HasQuests.erase(find(HasQuests.begin(), HasQuests.end(), "КУРИ"));
+            }
+            MadeQuests.push_back("КУРИ");
+        }
+    }
+    canSpeak_now = true;
+}
+
+void GiveDog(){
+    if (Map[1][2][4] == You.hero && find(HasQuests.begin(), HasQuests.end(), dog.NameQuestDog) == HasQuests.end() && find(MadeQuests.begin(), MadeQuests.end(), dog.NameQuestDog) == MadeQuests.end()) {
+        system("cls");
+        cout << "*фрух-фрух ... фух...фух-фух...фрш...шрф*";
+        _getch();
+        cout << "Гав!"<<endl;
+        Sleep(1000);
+        cout << "ГАВ-ГАВ!" << endl;
+        Sleep(500);
+        cout << "ГАВГАВ!" << endl;
+        Sleep(200);
+        for (int x = 100;x >= 0;x--) {
+            cout << "ГАВГАВ";
+            Sleep(20);
+        }
+        HasQuests.push_back(dog.NameQuestDog);
+    }
+}
+
+// управление
+void Move(char m[3]) {
+    Go_hero();
+    Move_enemy();
+    //ПРОВЕРКА НА БЛИЗОСТЬ
+    bool x_true = getActionOnEnemyX(You.hero_x, You.hero_y, enemy.enemy_x, enemy.enemy_y);
+    bool y_true = getActionOnEnemyY(You.hero_x, You.hero_y, enemy.enemy_x, enemy.enemy_y);
+    bool x_NPC_true = getActionOnEnemyX(You.hero_x, You.hero_y, Cyrllius_x, Cyrllius_y);
+    bool y_NPC_true = getActionOnEnemyY(You.hero_x, You.hero_y, Cyrllius_x, Cyrllius_y);
+    bool N_X = Narik_X(You.hero_x, You.hero_y, NAR.Nar_x, NAR.Nar_y);
+    bool N_Y = Narik_Y(You.hero_x, You.hero_y, NAR.Nar_x, NAR.Nar_y);
+
+    //Ход игрока проверяется
+    if (can_go == true) {
+        // взять
+        if (m[0] == 'e') {
+            if (hero_inv_i < 6) {
+                //взятие собаки
+                if (You.floor == dog.Dog) {
+                    You.floor = " . ";
+                    hero_invent[hero_inv_i] = dog.Dog;
+                    hero_invent_th[hero_inv_i] = dog.Dog;
+                    ++hero_inv_i;
+                    HasQuests.erase(find(HasQuests.begin(), HasQuests.end(), dog.NameQuestDog));
+                    MadeQuests.push_back(dog.NameQuestDog);
+                    Maze[12][0] = " . ";
+                }
+                //взять камень
+                if (stone.li_x == You.hero_x && stone.li_y == You.hero_y && stone.pick_loot_item == false && map_number == 0) {
+                    hero_invent[hero_inv_i] = stone.loot_item;
+                    hero_invent_th[hero_inv_i] = stone.mystical_stone;
+                    stone.pick_loot_item = true;
+
+                    if (map_number == 0) { map_number = 1;Map[map_number][You.hero_y][You.hero_x] = You.hero;Map[map_number][You.hero_y][You.hero_x] = You.hero;Map[0][You.hero_y][You.hero_x] = " . "; }
+                    else if (map_number == 1) { map_number = 0;Map[map_number][You.hero_y][You.hero_x] = You.hero;Map[0][You.hero_y][You.hero_x] = " 1 "; }
+                    enemy.fight_for_enemy = false;
+                    fight = false;
+                    ++hero_inv_i;
+                    You.floor = " . ";
+                }
+                //взятие травы 1
+                if (weed1.Wi_x == You.hero_x && weed1.Wi_y == You.hero_y && weed1.pick_weed_item == false && map_number == 0) {
+                    hero_invent[hero_inv_i] = weed1.weed_item;
+                    hero_invent_th[hero_inv_i] = weed1.weed_item_thing;
+                    weed1.pick_weed_item = true;
+                    ++hero_inv_i;
+                    You.floor = " - ";
+                }
+                //взятие травы 2
+                if (weed2.Wi_x == You.hero_x && weed2.Wi_y == You.hero_y && weed2.pick_weed_item == false && map_number == 1) {
+                    hero_invent[hero_inv_i] = weed2.weed_item;
+                    hero_invent_th[hero_inv_i] = weed2.weed_item_thing;
+                    weed2.pick_weed_item = true;
+                    ++hero_inv_i;
+                    You.floor = " . ";
+                }
+            }
+            else { cout << "У ТЕБЯ ЗАБИТ ИНВЕНТАРЬ!" << endl; }
+            //говорить
+            if (x_NPC_true || y_NPC_true) {
+                TalkWithC();
+            }
+            if (N_X || N_Y) {
+                TalkWithNaric();
+            }
+
+        }
+        int stoiI;// номер предмета для игрока
+        // активация предмета 1
+        if (m[0] == 'i' && m[2] != 'd') {
+            stoiI = m[1] - '0';
+            bool ProverkaForUseThings = true;
+            if (hero_invent_th[stoiI - 1] == stone.mystical_stone) {
+                if (You.RightArm == ' ' || You.LeftArm == ' ') {
+                    You.brutal_mode = true;
+                    BrutalMode();
+                }
+                else { cout << "Твои руки заняты!";ProverkaForUseThings = false;_getch(); }
+            }
+            if (hero_invent_th[stoiI - 1] == weed1.weed_item_thing) {
+                Smoking = true;
+                ProverkaForUseThings = false;
+            }
+            if (hero_invent_th[stoiI - 1] == dog.Dog) {
+                ProverkaForUseThings = false;
+            }
+            if (ProverkaForUseThings == true) {
+                hero_invent[stoiI - 1] = " " + to_string(stoiI) + " ";
+                hero_invent_th[stoiI - 1] = " " + to_string(stoiI) + " ";
+                for (int x = 0;x <= 4;x++) {
+                    if (hero_invent[x + 1] != " 1 " && hero_invent[x + 1] != " 2 " && hero_invent[x + 1] != " 3 " && hero_invent[x + 1] != " 4 " && hero_invent[x + 1] != " 5 " && hero_invent[x + 1] != " 6 ") {
+                        hero_invent[x] = hero_invent[x + 1];
+                        hero_invent_th[x] = hero_invent_th[x + 1];
+                        hero_invent[x + 1] = " " + to_string(x + 2) + " ";
+                        hero_invent_th[x + 1] = " " + to_string(x + 2) + " ";
+                    }
+                }
+                --hero_inv_i;
+            }
+        }
+        if (m[0] == 'i' && m[2] == 'd') {
+            stoiI = m[1] - '0';
+            if (hero_invent_th[stoiI - 1] != dog.Dog) {
+                hero_invent[stoiI - 1] = " " + to_string(stoiI) + " ";
+                hero_invent_th[stoiI - 1] = " " + to_string(stoiI) + " ";
+                for (int x = 0;x <= 4;x++) {
+                    if ((hero_invent[x] == " 1 " || hero_invent[x] == " 2 " || hero_invent[x] == " 3 " || hero_invent[x] == " 4 " || hero_invent[x] == " 5 " || hero_invent[x] == " 6 ")  && hero_invent[x + 1] != " 2 " && hero_invent[x + 1] != " 3 " && hero_invent[x + 1] != " 4 " && hero_invent[x + 1] != " 5 " && hero_invent[x + 1] != " 6 ") {
+                        hero_invent[x] = hero_invent[x + 1];
+                        hero_invent_th[x] = hero_invent_th[x + 1];
+                        hero_invent[x + 1] = " " + to_string(x + 2) + " ";
+                        hero_invent_th[x + 1] = " " + to_string(x + 2) + " ";
+                    }
+                }
+                --hero_inv_i;
+            }
+        }
+        //рядом враг и начать бой
+        if (m[0] == 'q' && (x_true || y_true)) {
+            if (fight == false) {
+                fight = true;
+                Go_hero();
+                enemy.enemy_entity_HP = enemy.enemy_entity_HP - You.DMG;
+                Interface_enemy[3][1] = to_string(enemy.enemy_entity_HP);
+                life_all();
+                enemy.fight_for_enemy = true;
+                enemy.enemy_moves = true;
+                Move_enemy();
+            }
+            else if (fight == true) {
+                enemy.enemy_entity_HP = enemy.enemy_entity_HP - You.DMG;
+                Interface_enemy[3][1] = to_string(enemy.enemy_entity_HP);
+                life_all();
+                hero_moves = false;
+                Go_hero();
+                enemy.enemy_moves = true;
+                Move_enemy();
+            }
+        }
+
+        //рядом C (секрет)
+        if (m[0] == 'c' && brutality_c == false && Cyrllius_life == true && You.brutal_mode == true) {
+            Map[map_number][You.hero_y][You.hero_x] = " . ";
+            You.hero_y = Cyrllius_y + 1;
+            You.hero_x = Cyrllius_x;
+            Map[map_number][You.hero_y][You.hero_x] = You.hero;
+            brutality_c = true;
+        }
+
+        //Ходьба
+        if (m[0] == 'w') { //вверх
+            if (YouInMaze == false && Map[map_number][You.hero_y - 1][You.hero_x] != " # " && (Map[map_number][You.hero_y - 1][You.hero_x] != Map[0][enemy.enemy_y][enemy.enemy_x] || enemy.enemy_life == false) && Map[map_number][You.hero_y - 1][You.hero_x] != " Г ") {
+                Map[map_number][You.hero_y][You.hero_x] = You.floor;
+                You.floor = Map[map_number][--You.hero_y][You.hero_x];
+                Map[map_number][You.hero_y][You.hero_x] = You.hero;
+            }
+            else if (YouInMaze == true && Maze[You.hero_y - 1][You.hero_x] != " # ") {
+                Maze[You.hero_y][You.hero_x] = You.floor;
+                You.floor = Maze[--You.hero_y][You.hero_x];
+                Maze[You.hero_y][You.hero_x] = You.hero;
+            }
+            if (fight && hero_moves) {
+                enemy.enemy_moves = true;//переменная хода для моба
+                Move_enemy();//помогает мобу ходить
+                hero_moves = false;
+                Go_hero();// функция проверка на ходьбу игрока
+            }
+        }
+        if (m[0] == 's') { //вниз
+            if (YouInMaze == false && Map[map_number][You.hero_y + 1][You.hero_x] != " # " && (Map[map_number][You.hero_y + 1][You.hero_x] != Map[0][enemy.enemy_y][enemy.enemy_x] || enemy.enemy_life == false) && Map[map_number][You.hero_y + 1][You.hero_x] != " Г ") {
+                Map[map_number][You.hero_y][You.hero_x] = You.floor;
+                You.floor = Map[map_number][++You.hero_y][You.hero_x];
+                Map[map_number][You.hero_y][You.hero_x] = You.hero;
+            }
+            else if (YouInMaze == true && Maze[You.hero_y + 1][You.hero_x] != " # ") {
+                Maze[You.hero_y][You.hero_x] = You.floor;
+                You.floor = Maze[++You.hero_y][You.hero_x];
+                Maze[You.hero_y][You.hero_x] = You.hero;
+            }
+            if (fight && hero_moves) {
+                enemy.enemy_moves = true;//переменная хода для моба
+                Move_enemy();//помогает мобу ходить
+                hero_moves = false;
+                Go_hero();// функция проверка на ходьбу игрока
+            }
+        }
+        if (m[0] == 'a') { //влево
+            if (YouInMaze == false && Map[map_number][You.hero_y][You.hero_x - 1] != " # " && (Map[map_number][You.hero_y][You.hero_x - 1] != Map[0][enemy.enemy_y][enemy.enemy_x] || enemy.enemy_life == false) && Map[map_number][You.hero_y][You.hero_x - 1] != " Г ") {
+                Map[map_number][You.hero_y][You.hero_x] = You.floor;
+                You.floor = Map[map_number][You.hero_y][--You.hero_x];
+                Map[map_number][You.hero_y][You.hero_x] = You.hero;
+            }
+            else if (YouInMaze == true && Maze[You.hero_y][You.hero_x - 1] != " # ") {
+                Maze[You.hero_y][You.hero_x] = You.floor;
+                You.floor = Maze[You.hero_y][--You.hero_x];
+                Maze[You.hero_y][You.hero_x] = You.hero;
+            }
+            if (fight && hero_moves) {
+                enemy.enemy_moves = true;//переменная хода для моба
+                Move_enemy();//помогает мобу ходить
+                hero_moves = false;
+                Go_hero();// функция проверка на ходьбу игрока
+            }
+        }
+        if (m[0] == 'd') { //вправо
+            if (YouInMaze == false && Map[map_number][You.hero_y][You.hero_x + 1] != " # " && (Map[map_number][You.hero_y][You.hero_x + 1] != Map[0][enemy.enemy_y][enemy.enemy_x] || enemy.enemy_life == false) && Map[map_number][You.hero_y][You.hero_x + 1] != " Г ") {
+                Map[map_number][You.hero_y][You.hero_x] = You.floor;
+                You.floor = Map[map_number][You.hero_y][++You.hero_x];
+                Map[map_number][You.hero_y][You.hero_x] = You.hero;
+            }
+            else if (YouInMaze == true && Maze[You.hero_y][You.hero_x + 1] != " # ") {
+                Maze[You.hero_y][You.hero_x] = You.floor;
+                You.floor = Maze[You.hero_y][++You.hero_x];
+                Maze[You.hero_y][You.hero_x] = You.hero;
+            }
+            if (fight && hero_moves) {
+                enemy.enemy_moves = true;//переменная хода для моба
+                Move_enemy();//помогает мобу ходить
+                hero_moves = false;
+                Go_hero();// функция проверка на ходьбу игрока
+            }
+        }
+        if (Map[1][2][4] == You.hero && m[0] == 'd') { Map[1][2][5] = " . "; }
+    }
+
+    //кнопка для доп.инф.
+    if (m[0] == 'k') {
+        if (debug == false) { debug = true; }
+        else { debug = false; }
+    }
+
+    if (map_number == 1 && You.hero_y <= 0) { Map[map_number][0][You.hero_x] = " + "; map_number = 2;You.hero_y = 4;You.floor = Map[map_number][You.hero_y][You.hero_x];Map[map_number][You.hero_y][You.hero_x] = You.hero;}
+    else if (map_number == 2 && You.hero_y >= 5) { Map[map_number][5][You.hero_x] = " + "; map_number = 1;You.hero_y = 1;You.floor = Map[map_number][You.hero_y][You.hero_x];Map[map_number][You.hero_y][You.hero_x] = You.hero; }
+    if (pitone.pit_y == You.hero_y && pitone.pit_x == You.hero_x && map_number == 2) { pitone.pit_pit = true;You.floor = " . "; }
+    Map[2][pitone.pit_y][pitone.pit_x] = pitone.pit_one;
+    if (Map[1][2][5] == You.hero) { Map[1][2][5] = " . "; YouInMaze = true;You.hero_x = 1;You.hero_y = 12;Maze[You.hero_y][You.hero_x] = You.hero;You.floor = " . "; }
+    if (Maze[12][0] == You.hero) { Maze[12][0] = " . "; YouInMaze = false;You.hero_x = 4;You.hero_y = 2;Map[map_number][You.hero_y][You.hero_x] = You.hero;You.floor = " . "; }
+    GiveDog();
+}
+
+void Anime_Brutal_C() {
+    //анимация
+    if (brutality_c == true) {
+        Map[map_number][You.hero_y][You.hero_x] = " . ";
+        Sleep(500);
+        anime();
+        Map[map_number][You.hero_y][You.hero_x] = You.hero;
+        Sleep(1000);
+        anime();
+        Map[map_number][You.hero_y][You.hero_x] = " . ";
+        You.hero_x = Cyrllius_x + 1;
+        You.hero_y = Cyrllius_y;
+        Map[map_number][You.hero_y][You.hero_x] = You.hero;
+        Sleep(20);
+        anime();;
+        Map[map_number][You.hero_y][You.hero_x] = " . ";
+        You.hero_x = You.hero_x + 1;Map[map_number][You.hero_y][You.hero_x] = You.hero;
+        Sleep(50);
+        anime();;
+        Map[map_number][You.hero_y][You.hero_x - 1] = "<--";
+        Sleep(100);
+        anime();
+        Map[map_number][You.hero_y][You.hero_x] = " . ";
+        You.hero_x = You.hero_x - 1;
+        Map[map_number][You.hero_y][You.hero_x] = You.hero;
+        Map[map_number][Cyrllius_y][Cyrllius_x] = "<С-";
+        Cyrllius = "<С-";
+        Cyrllius_life = false;
+        system("cls");
+        brutality_c = false;
+    }//конец анимации
+}
+void Smoking_Anime() {
+    if (Smoking) {
+        if (!YouInMaze) {
+            int y_SmokeOfSmoking = 1;
+            string smoke1 = Map[map_number][You.hero_y - 1][You.hero_x];
+            string smoke2;
+            string smoke3;
+            if (You.hero_y > 1) {
+                smoke2 = Map[map_number][You.hero_y - 2][You.hero_x];
+            }
+            if (You.hero_y > 2) {
+                smoke3 = Map[map_number][You.hero_y - 3][You.hero_x];
+            }
+            for (int x = 0;x <= 20;x++) {
+                if (y_SmokeOfSmoking == 7) { y_SmokeOfSmoking = 1; }
+                if (y_SmokeOfSmoking == 1) { Map[map_number][You.hero_y - 1][You.hero_x] = "  \'"; }
+                if (y_SmokeOfSmoking == 4) { Map[map_number][You.hero_y - 1][You.hero_x] = " \' "; }
+                if (You.hero_y > 1) {
+                    if (y_SmokeOfSmoking == 2) { Map[map_number][You.hero_y - 2][You.hero_x] = " \' "; }
+                    if (y_SmokeOfSmoking == 5) { Map[map_number][You.hero_y - 2][You.hero_x] = "\'  "; }
+                }
+                if (You.hero_y > 2) {
+                    if (y_SmokeOfSmoking == 3) { Map[map_number][You.hero_y - 3][You.hero_x] = "\'  "; }
+                    if (y_SmokeOfSmoking == 6) { Map[map_number][You.hero_y - 3][You.hero_x] = " \' "; }
+                }
+                anime();
+                Map[map_number][You.hero_y][You.hero_x] = You.hero;
+                y_SmokeOfSmoking = y_SmokeOfSmoking + 1;
+                Sleep(100);
+                system("cls");
+            }
+            Map[map_number][You.hero_y - 1][You.hero_x] = smoke1;
+            if (You.hero_y > 1) {
+                Map[map_number][You.hero_y - 2][You.hero_x] = smoke2;
+            }
+            if (You.hero_y > 2) {
+                Map[map_number][You.hero_y - 3][You.hero_x] = smoke3;
+            }
+            You.col_smok++;
+            if (You.col_smok == 5) { You.WhyYouDied = "Курение вредит ваешму здоровью ;)";You.life = false; }  
+        }
+        else {
+            You.WhyYouDied = "Вы задохнулись в дыму из-за тесного пространства!";
+            You.life = false;
+        }
+        Smoking = false;
+    }
+}
+
+void RenderPit() {
+    if (pitone.pit_pit == true) {
+        can_go == false;
+        You.hero_x = 1, You.hero_y = 2;
+        for (int m = 30;m > 0;m--) {
+            pitone.pit_number = 0;
+            system("cls");
+            Pit1[pitone.pit_number][You.hero_y][You.hero_x] = You.hero;
+            Render_map();
+            Sleep(100);
+            pitone.pit_number = 1;
+            system("cls");
+            Pit1[pitone.pit_number][You.hero_y][You.hero_x] = You.hero;
+            Render_map();
+        }
+        if (You.brutal_mode == false) {
+            You.HP = You.HP - 2;
+            Interface[3][1] = to_string(You.HP);
+        }
+        pitone.pit_pit = false;
+        map_number = 0;
+        You.hero_x = 1, You.hero_y = 1;
+        system("cls");
+        Map[map_number][You.hero_y][You.hero_x] = You.hero;
+        Render_map();
+        can_go == true;
+        system("cls");
+    }
+}
+
+// что видит игрок
+int main() {
+    setlocale(LC_ALL, "ru");
+    system("chcp 1251 > nul");
+    cout << "Привет,это моя первая работа и сейчас тебе нужно ее пройти." << endl << "Не бойся,он небольшая.Давай скажу твою цель." << endl << "Ты должен получить две ачивки,а потом умереть любым удобным способом." << endl <<"Если все сделано, то тебе выведет текст с поздравлением)" << endl;
+    _getch();
+    system("cls");
+    get_name();
+    system("cls");
+    weed2.Wi_x = 1;weed2.Wi_y = 1;
+    Map[map_number][stone.li_y][stone.li_x] = stone.loot_item;
+    Map[map_number][enemy.enemy_y][enemy.enemy_x] = enemy.enemy_entity;
+    Map[map_number][weed1.Wi_y][weed1.Wi_x] = weed1.weed_item;
+    Map[1][weed2.Wi_y][weed2.Wi_x] = weed2.weed_item;
+    Map[2][pitone.pit_y][pitone.pit_x] = pitone.pit_one;
+    Map[NAR.Nar_MapNumber][NAR.Nar_y][NAR.Nar_x] = NAR.NaricNPC;
+    You.hero = You.LeftArm + You.hero_body + You.RightArm;
+    Map[map_number][You.hero_y][You.hero_x] = You.hero;
+    Maze[dog.dog_y][dog.dog_x] = dog.Dog;
+    cout << ">Твоя главная цель:убить A!" << endl << "Сможешь?" << endl;
+    cout << "Нет...(1) || ДА (2) " << endl;
+    do {
+        cin >> dialog_number;
+    } while (dialog_number != '1' && dialog_number != '2');
+    if (dialog_number == '1') {
+        cout << ">У тебя НЕТ выбора! ВАЛИ ВЫПОЛНЯТЬ!" << endl;
+    }
+    if (dialog_number == '2') {
+        cout << ">ТАК ДЕРЖАТЬ СОЛДАТ!" << endl;
+    }
+    _getch();
+    HasQuests.push_back("УБЕЙ ЕГО");
+
+    while (true) {
+        life_all();
+        You.hero = You.LeftArm + You.hero_body + You.RightArm;
+        if (stone.pick_loot_item == true) { stone.loot_item = " . "; }
+        if (enemy.enemy_life == false) { enemy.enemy_entity = " . "; }
+        system("cls");
+        if (Cyrllius_life == true) {
+            Map[map_number][Cyrllius_y][Cyrllius_x] = Cyrllius;
+        }
+        else { Map[0][Cyrllius_y][Cyrllius_x] = Cyrllius;Map[1][Cyrllius_y][Cyrllius_x] = " . "; }
+        if (Map[map_number][You.hero_y][You.hero_x] == Map[map_number][Cyrllius_y][Cyrllius_x] && Cyrllius_life == true) {
+            for (int i = 10; i > 0; i--) {
+                if (Map[map_number][You.hero_y + 1][You.hero_x] != " # ")
+                {
+                    Sleep(1);anime();
+                    Map[map_number][You.hero_y][You.hero_x] = You.floor;
+                    You.floor = Map[map_number][++You.hero_y][You.hero_x];
+                    Map[map_number][You.hero_y][You.hero_x] = You.hero;
+                }
+            }
+            system("cls");
+        }// толчок        
+        Anime_Brutal_C();
+        Smoking_Anime();
+        RenderPit();
+        Render_map();
+        Render_Invert();
+        UI_Map();
+        if (You.life == false) {
+            system("cls");
+            if (YouInMaze == false) {
+                Map[map_number][You.hero_y][You.hero_x] = " + ";
+            }
+            else{ Maze[You.hero_y][You.hero_x] = " + "; }
+            Render_map();
+            Render_Invert();
+            UI_Map();
+            cout << You.WhyYouDied;
+            _getch();
+            system("cls");
+            if (!MadeQuests.empty()) {
+            cout << "Твои ачивки:";
+            for (int x = 0; x < size(MadeQuests);x++) {
+                cout << MadeQuests[x];
+                if (x < size(MadeQuests) - 1) {
+                    cout << "||";
+                }
+            }
+          
+            _getch();
+            system("cls");  
+
+            if (size(MadeQuests) > 1) {
+                cout << "Поздравляю, ты прошел мою демку) Я очень рад, что ты попробовал ее и надеюсь тебе понравился этот опыт." << endl << "Да, демочка совсем маленькая, но я ее сделал своими ручками и считаю ее очень уютной.Надеюсь, что ты, читатель, со мной согласен." << endl << "Теперь можешь лететь по своим очень важным делам или просто отдыхать, в общем, делай, что хочешь.Желаю тебе удачи;)"<< endl;
+                if (size(MadeQuests) < 4) {
+                    cout << "...Но ты " << endl;
+                    if (find(MadeQuests.begin(), MadeQuests.end(), dog.NameQuestDog) == MadeQuests.end()) { cout << " не спас собаку," << endl; }
+                    if (find(MadeQuests.begin(), MadeQuests.end(), "КУРИ") == MadeQuests.end()) { cout << " не перекурил Нарика," << endl; }
+                    if (find(MadeQuests.begin(), MadeQuests.end(), "Potato") == MadeQuests.end()) { cout << " не нашёл картошку," << endl; }
+                    if (find(MadeQuests.begin(), MadeQuests.end(), "УБЕЙ ЕГО") == MadeQuests.end()) { cout << " не убил A(это не страшно)," << endl; }
+                    cout << "а это значит,что ты не прошел игру на 100%, а она так-то короткая...НО ты можешь попробовать снова!" << endl;
+                }
+                else{ cout << "...А еще ты прошёл игру на 100%, отдельное спасибо за это, мне очень приятно)" << endl; }
+            }
+             _getch();                                   
+                
+            }
+            return 0;
+        }
+        cout << "Введите команду" << endl;
+        //доп.информация для кодера
+        if (debug) {
+            cout << "hero_moves: " << hero_moves;
+            cout << " can_go: " << can_go << endl;
+            cout << "HP: " << You.HP;
+            cout << " map_number: " << map_number << endl;
+            cout << "pick_loot_item: " << stone.pick_loot_item;
+            cout << "pick_weed_item1: " << weed1.pick_weed_item;
+            cout << "pick_weed_item2: " << weed2.pick_weed_item;
+            cout << " enemy_entity_HP: " << enemy.enemy_entity_HP << endl;
+            cout << "fight_for_enemy: " << enemy.fight_for_enemy;
+            cout << " fight: " << fight << endl;
+            cout << "enemy_life: " << enemy.enemy_life;
+            cout << " enemy_moves: " << enemy.enemy_moves << endl;
+            cout << "life: " << You.life;
+            cout << "enemy_x: " << enemy.enemy_x;
+            cout << " enemy_y: " << enemy.enemy_y << endl;
+            cout << "You.hero_x: " << You.hero_x;
+            cout << " You.hero_y: " << You.hero_y << endl;
+            cout << "You.brutal_mode: " << You.brutal_mode;
+            cout << " pit_pit: " << pitone.pit_pit << endl;
+            cout << " You.col_smok: " << You.col_smok << endl;
+            cout << hero_invent_th[0] << "||" << hero_invent_th[1] << "||" << hero_invent_th[2] << "||" << hero_invent_th[3] << "||" << hero_invent_th[4] << "||" << hero_invent_th[5] << "||" << endl;
+            cout << hero_invent[0] << "||" << hero_invent[1] << "||" << hero_invent[2] << "||" << hero_invent[3] << "||" << hero_invent[4] << "||" << hero_invent[5] << "||" << endl;
+            cout << "You.floor: \"" << You.floor << "\""<<endl;
+        }
+        char f[3];
+        cin >> f;
+        if (f[0] == '0') { return 0; }
+        Move(f);
+        Move_enemy();
+    }
+}
